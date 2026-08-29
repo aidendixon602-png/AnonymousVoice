@@ -20,6 +20,16 @@ target_sources(AnonymousVoice
         Source/Main.cpp
         Source/MainComponent.cpp
         Source/MainComponent.h
+        Source/Audio/DspEngine.cpp
+        Source/Audio/DspEngine.h
+        Source/Audio/VirtualMicOutput.cpp
+        Source/Audio/VirtualMicOutput.h
+)
+
+target_include_directories(AnonymousVoice
+    PRIVATE
+        Source
+        Source/Audio
 )
 
 target_compile_definitions(AnonymousVoice
