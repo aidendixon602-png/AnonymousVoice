@@ -38,6 +38,10 @@ target_compile_definitions(AnonymousVoice
         JUCE_USE_CURL=0
 )
 
+if (MSVC)
+    target_compile_options(AnonymousVoice PRIVATE /MP1)
+endif()
+
 target_link_libraries(AnonymousVoice
     PRIVATE
         juce::juce_audio_utils
