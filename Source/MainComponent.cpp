@@ -2,15 +2,15 @@
 
 namespace
 {
-    const auto background = juce::Colour::fromRGB(7, 11, 18);
-    const auto panel = juce::Colour::fromRGB(13, 19, 30);
-    const auto panelRaised = juce::Colour::fromRGB(18, 25, 39);
-    const auto border = juce::Colour::fromRGB(39, 49, 68);
-    const auto text = juce::Colour::fromRGB(241, 244, 250);
-    const auto muted = juce::Colour::fromRGB(154, 164, 184);
-    const auto purple = juce::Colour::fromRGB(166, 76, 255);
-    const auto teal = juce::Colour::fromRGB(39, 208, 194);
-    const auto green = juce::Colour::fromRGB(41, 208, 112);
+    const auto background = juce::Colour::fromRGB(5, 8, 14);
+    const auto panel = juce::Colour::fromRGB(10, 15, 24);
+    const auto panelRaised = juce::Colour::fromRGB(15, 21, 33);
+    const auto border = juce::Colour::fromRGB(37, 45, 63);
+    const auto text = juce::Colour::fromRGB(244, 246, 252);
+    const auto muted = juce::Colour::fromRGB(147, 157, 178);
+    const auto purple = juce::Colour::fromRGB(161, 72, 255);
+    const auto teal = juce::Colour::fromRGB(40, 209, 204);
+    const auto green = juce::Colour::fromRGB(45, 214, 119);
 }
 
 MainComponent::VoiceCard::VoiceCard(juce::String nameToUse, juce::String iconToUse, bool selectedToUse)
@@ -22,22 +22,22 @@ MainComponent::VoiceCard::VoiceCard(juce::String nameToUse, juce::String iconToU
 void MainComponent::VoiceCard::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat().reduced(1.0f);
-    g.setColour(selected ? juce::Colour::fromRGB(26, 20, 45) : panelRaised);
+    g.setColour(selected ? juce::Colour::fromRGB(26, 18, 45) : panelRaised);
     g.fillRoundedRectangle(bounds, 12.0f);
     g.setColour(selected ? purple : border);
-    g.drawRoundedRectangle(bounds, 12.0f, selected ? 1.8f : 1.0f);
+    g.drawRoundedRectangle(bounds, 12.0f, selected ? 2.0f : 1.0f);
 
     g.setColour(selected ? purple : muted);
-    g.setFont(juce::FontOptions(28.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(29.0f, juce::Font::bold));
     g.drawText(icon, getLocalBounds().removeFromTop(58), juce::Justification::centred);
 
     g.setColour(text);
     g.setFont(juce::FontOptions(14.0f, juce::Font::bold));
     g.drawFittedText(name, getLocalBounds().withTrimmedTop(58).removeFromTop(26), juce::Justification::centred, 1);
 
-    g.setColour(muted);
+    g.setColour(selected ? purple.brighter(0.25f) : muted);
     g.setFont(juce::FontOptions(11.0f));
-    g.drawText("Add keybind", getLocalBounds().removeFromBottom(22), juce::Justification::centred);
+    g.drawText(selected ? "Stealth" : "Preset", getLocalBounds().removeFromBottom(22), juce::Justification::centred);
 }
 
 void MainComponent::VoiceCard::mouseUp(const juce::MouseEvent&)
@@ -112,14 +112,14 @@ MainComponent::MainComponent()
     configureNavButton(voiceLabButton, false);
     configureNavButton(settingsButton, false);
     configureNavButton(keybindsButton, false);
-    for (auto* button : { &voiceboxButton, &soundboardButton, &voiceLabButton, &settingsButton, &keybindsButton })
+    for (auto* button : { &voiceboxButton, &soundboardButton, &voiceLabButton, &keybindsButton, &settingsButton })
         addAndMakeVisible(*button);
 
     userLabel.setText("Anonymous\nOnline", juce::dontSendNotification);
-    userLabel.setColour(juce::Label::textColourId, muted);
+    userLabel.setColour(juce::Label::textColourId, green);
     addAndMakeVisible(userLabel);
 
-    voiceboxTitle.setText("VOICEBOX", juce::dontSendNotification);
+    voiceboxTitle.setText("VOICE PRESETS", juce::dontSendNotification);
     voiceboxTitle.setFont(juce::FontOptions(18.0f, juce::Font::bold));
     voiceboxTitle.setColour(juce::Label::textColourId, text);
     addAndMakeVisible(voiceboxTitle);
@@ -151,17 +151,17 @@ MainComponent::MainComponent()
         addAndMakeVisible(*voiceCards[i]);
     }
 
-    presetTitle.setText("VOICE PRESET", juce::dontSendNotification);
+    presetTitle.setText("PRESET DETAILS", juce::dontSendNotification);
     presetTitle.setFont(juce::FontOptions(18.0f, juce::Font::bold));
     presetTitle.setColour(juce::Label::textColourId, text);
     addAndMakeVisible(presetTitle);
 
-    presetName.setText("Anonymous", juce::dontSendNotification);
+    presetName.setText("Anonymous  •  Stealth", juce::dontSendNotification);
     presetName.setFont(juce::FontOptions(17.0f, juce::Font::bold));
     presetName.setColour(juce::Label::textColourId, purple);
     addAndMakeVisible(presetName);
 
-    presetDescription.setText("Designed to make your voice harder to recognize while keeping speech clear.", juce::dontSendNotification);
+    presetDescription.setText("Designed to make your voice harder to recognize while preserving clear speech.", juce::dontSendNotification);
     presetDescription.setColour(juce::Label::textColourId, muted);
     presetDescription.setJustificationType(juce::Justification::topLeft);
     addAndMakeVisible(presetDescription);
@@ -200,7 +200,7 @@ MainComponent::MainComponent()
 
     inputLabel.setText("AUDIO INPUT", juce::dontSendNotification);
     monitorLabel.setText("LIVE MONITOR", juce::dontSendNotification);
-    outputLabel.setText("OUTPUT DEVICE", juce::dontSendNotification);
+    outputLabel.setText("OUTPUT DEVICE (VIRTUAL)", juce::dontSendNotification);
     for (auto* label : { &inputLabel, &monitorLabel, &outputLabel }) { label->setColour(juce::Label::textColourId, muted); label->setFont(juce::FontOptions(11.0f, juce::Font::bold)); addAndMakeVisible(*label); }
 
     inputBox.addItem("Default Microphone", 1); inputBox.setSelectedId(1);
@@ -211,8 +211,8 @@ MainComponent::MainComponent()
     monitorToggle.setToggleState(true, juce::dontSendNotification); monitorToggle.setColour(juce::ToggleButton::textColourId, muted); addAndMakeVisible(monitorToggle);
     monitorVolume.setSliderStyle(juce::Slider::LinearHorizontal); monitorVolume.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0); monitorVolume.setRange(0.0, 1.0, 0.01); monitorVolume.setValue(0.72); monitorVolume.setColour(juce::Slider::trackColourId, purple); monitorVolume.setColour(juce::Slider::thumbColourId, purple); monitorVolume.setColour(juce::Slider::backgroundColourId, border); addAndMakeVisible(monitorVolume);
 
-    statusLabel.setText("Running", juce::dontSendNotification); statusLabel.setColour(juce::Label::textColourId, green); addAndMakeVisible(statusLabel);
-    cpuLabel.setText("CPU: --", juce::dontSendNotification); latencyLabel.setText("Latency: --", juce::dontSendNotification); versionLabel.setText("v0.1.0", juce::dontSendNotification);
+    statusLabel.setText("Protection Active", juce::dontSendNotification); statusLabel.setColour(juce::Label::textColourId, green); addAndMakeVisible(statusLabel);
+    cpuLabel.setText("CPU: --", juce::dontSendNotification); latencyLabel.setText("Latency: --", juce::dontSendNotification); versionLabel.setText("v0.2.0-dev", juce::dontSendNotification);
     for (auto* label : { &cpuLabel, &latencyLabel, &versionLabel }) { label->setColour(juce::Label::textColourId, muted); addAndMakeVisible(*label); }
 
     pitchSlider.onValueChange = [this] { if (effectCards[1]) effectCards[1]->slider().setValue(pitchSlider.getValue(), juce::dontSendNotification); };
@@ -222,7 +222,11 @@ MainComponent::MainComponent()
     startTimerHz(30);
 }
 
-MainComponent::~MainComponent() { stopTimer(); shutdownAudio(); }
+MainComponent::~MainComponent()
+{
+    stopTimer();
+    shutdownAudio();
+}
 
 void MainComponent::configureNavButton(juce::TextButton& button, bool selected)
 {
@@ -246,37 +250,65 @@ void MainComponent::configureHorizontalSlider(juce::Slider& slider, double min, 
     slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
 }
 
+void MainComponent::syncDspParameters()
+{
+    if (!effectCards[0] || !effectCards[4] || !effectCards[5] || !effectCards[6] || !effectCards[7] || !effectCards[8])
+        return;
+
+    auto& p = dspEngine.parameters();
+    p.gateThresholdDb.store(static_cast<float>(effectCards[0]->slider().getValue()));
+    p.compressorThresholdDb.store(static_cast<float>(effectCards[4]->slider().getValue()));
+    p.distortionDrive.store(static_cast<float>(effectCards[5]->slider().getValue() / 100.0));
+    p.chorusDepth.store(static_cast<float>(effectCards[6]->slider().getValue() / 100.0));
+    p.reverbMix.store(static_cast<float>(effectCards[7]->slider().getValue() / 100.0));
+    p.limiterThresholdDb.store(static_cast<float>(effectCards[8]->slider().getValue()));
+}
+
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 {
     estimatedLatencyMs.store(sampleRate > 0.0
         ? (1000.0 * static_cast<double>(samplesPerBlockExpected) / sampleRate)
         : 0.0);
+
+    dspEngine.prepare(sampleRate, samplesPerBlockExpected, 2);
+    virtualMicOutput.prepare(static_cast<int>(juce::jmax(48000.0, sampleRate)));
 }
 
 void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill)
 {
     auto* buffer = bufferToFill.buffer;
-    if (buffer == nullptr || buffer->getNumChannels() <= 0 || bufferToFill.numSamples <= 0) return;
+    if (buffer == nullptr || buffer->getNumChannels() <= 0 || bufferToFill.numSamples <= 0)
+        return;
 
     const auto start = bufferToFill.startSample;
     const auto count = bufferToFill.numSamples;
     const auto inputLevel = buffer->getMagnitude(0, start, count);
     inputPeak.store(juce::jmax(inputPeak.load() * 0.90f, inputLevel));
 
-    const auto gain = masterGain.load();
-    for (int channel = 0; channel < buffer->getNumChannels(); ++channel)
-    {
-        if (channel > 0) buffer->copyFrom(channel, start, *buffer, 0, start, count);
-        buffer->applyGain(channel, start, count, gain);
-    }
+    for (int channel = 1; channel < buffer->getNumChannels(); ++channel)
+        buffer->copyFrom(channel, start, *buffer, 0, start, count);
 
-    outputPeak.store(juce::jmax(outputPeak.load() * 0.90f, buffer->getMagnitude(0, start, count)));
+    dspEngine.process(*buffer, start, count);
+
+    const auto processedPeak = buffer->getMagnitude(0, start, count);
+    outputPeak.store(juce::jmax(outputPeak.load() * 0.90f, processedPeak));
+
+    virtualMicOutput.pushMono(buffer->getReadPointer(0, start), count);
+
+    const auto monitorGain = monitorToggle.getToggleState() ? static_cast<float>(monitorVolume.getValue()) : 0.0f;
+    for (int channel = 0; channel < buffer->getNumChannels(); ++channel)
+        buffer->applyGain(channel, start, count, monitorGain * masterGain.load());
 }
 
-void MainComponent::releaseResources() {}
+void MainComponent::releaseResources()
+{
+    dspEngine.reset();
+    virtualMicOutput.reset();
+}
 
 void MainComponent::timerCallback()
 {
+    syncDspParameters();
     repaint();
     cpuLabel.setText("CPU: " + juce::String(deviceManager.getCpuUsage() * 100.0, 1) + "%", juce::dontSendNotification);
     latencyLabel.setText("Latency: " + juce::String(estimatedLatencyMs.load(), 1) + " ms", juce::dontSendNotification);
@@ -300,8 +332,8 @@ void MainComponent::paint(juce::Graphics& g)
     auto visualArea = presetArea;
     auto visual = visualArea.removeFromRight(260).reduced(45, 60).toFloat();
     auto circle = visual.withSizeKeepingCentre(160.0f, 160.0f);
-    g.setColour(purple.withAlpha(0.16f)); g.fillEllipse(circle.expanded(14.0f));
-    g.setColour(purple.withAlpha(0.80f)); g.drawEllipse(circle, 2.0f);
+    g.setColour(purple.withAlpha(0.13f)); g.fillEllipse(circle.expanded(16.0f));
+    g.setColour(purple.withAlpha(0.90f)); g.drawEllipse(circle, 2.0f);
     g.setColour(panelRaised); g.fillEllipse(circle.reduced(12.0f));
     g.setColour(text); g.setFont(juce::FontOptions(42.0f, juce::Font::bold)); g.drawText("A", circle.toNearestInt(), juce::Justification::centred);
 
@@ -320,7 +352,7 @@ void MainComponent::resized()
 {
     auto bounds = getLocalBounds().reduced(12);
     auto footer = bounds.removeFromBottom(24);
-    statusLabel.setBounds(footer.removeFromLeft(260)); cpuLabel.setBounds(footer.removeFromLeft(120)); latencyLabel.setBounds(footer.removeFromLeft(180)); versionLabel.setBounds(footer.removeFromRight(90));
+    statusLabel.setBounds(footer.removeFromLeft(260)); cpuLabel.setBounds(footer.removeFromLeft(120)); latencyLabel.setBounds(footer.removeFromLeft(180)); versionLabel.setBounds(footer.removeFromRight(110));
 
     auto content = bounds;
     sidebarArea = content.removeFromLeft(215); content.removeFromLeft(12);
@@ -330,7 +362,7 @@ void MainComponent::resized()
 
     auto side = sidebarArea.reduced(16);
     brandLabel.setBounds(side.removeFromTop(32)); brandSubLabel.setBounds(side.removeFromTop(22)); side.removeFromTop(28);
-    for (auto* button : { &voiceboxButton, &soundboardButton, &voiceLabButton, &settingsButton, &keybindsButton }) { button->setBounds(side.removeFromTop(48)); side.removeFromTop(10); }
+    for (auto* button : { &voiceboxButton, &soundboardButton, &voiceLabButton, &keybindsButton, &settingsButton }) { button->setBounds(side.removeFromTop(48)); side.removeFromTop(10); }
     userLabel.setBounds(side.removeFromBottom(64));
 
     auto vb = voiceboxArea.reduced(18);
