@@ -1,0 +1,10 @@
+C:/Dev/AnonymousVoice/build/CMakeFiles/AnonymousVoice.dir
+C:/Dev/AnonymousVoice/build/CMakeFiles/AnonymousVoice_rc_lib.dir
+C:/Dev/AnonymousVoice/build/CMakeFiles/INSTALL.dir
+C:/Dev/AnonymousVoice/build/CMakeFiles/ALL_BUILD.dir
+C:/Dev/AnonymousVoice/build/CMakeFiles/ZERO_CHECK.dir
+C:/Dev/AnonymousVoice/build/JUCE/CMakeFiles/INSTALL.dir
+C:/Dev/AnonymousVoice/build/JUCE/CMakeFiles/ALL_BUILD.dir
+C:/Dev/AnonymousVoice/build/JUCE/modules/CMakeFiles/INSTALL.dir
+C:/Dev/AnonymousVoice/build/JUCE/extras/Build/CMakeFiles/INSTALL.dir
+C:/Dev/AnonymousVoice/build/JUCE/extras/Build/juceaide/CMakeFiles/INSTALL.dir

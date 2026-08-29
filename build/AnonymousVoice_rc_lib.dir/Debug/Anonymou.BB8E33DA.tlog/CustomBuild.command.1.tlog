@@ -1,0 +1,20 @@
+^C:\DEV\ANONYMOUSVOICE\BUILD\CMAKEFILES\FA18BA7AC21C986AEB203790CF18C741\ANONYMOUSVOICE_RESOURCES.RC.RULE
+setlocal
+JUCE\tools\extras\Build\juceaide\juceaide_artefacts\Custom\juceaide.exe rcfile C:/Dev/AnonymousVoice/build/AnonymousVoice_artefacts/JuceLibraryCode/Info.txt C:/Dev/AnonymousVoice/build/AnonymousVoice_artefacts/JuceLibraryCode/AnonymousVoice_resources.rc
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\DEV\ANONYMOUSVOICE\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Dev/AnonymousVoice -BC:/Dev/AnonymousVoice/build --check-stamp-file C:/Dev/AnonymousVoice/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

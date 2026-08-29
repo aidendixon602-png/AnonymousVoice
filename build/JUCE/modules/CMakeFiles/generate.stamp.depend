@@ -1,0 +1,4 @@
+# CMake generation dependency list for this directory.
+C:/Dev/AnonymousVoice/build/CMakeFiles/cmake.verify_globs
+C:/Dev/JUCE/modules/CMakeLists.txt
+C:/Dev/JUCE/modules/juce_gui_extra/native/typescript/webview-interop/package.json
