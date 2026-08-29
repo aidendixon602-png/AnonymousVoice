@@ -20,6 +20,16 @@ target_sources(AnonymousVoice
         Source/Main.cpp
         Source/MainComponent.cpp
         Source/MainComponent.h
+        Source/Audio/DspEngine.cpp
+        Source/Audio/DspEngine.h
+        Source/Audio/VirtualMicOutput.cpp
+        Source/Audio/VirtualMicOutput.h
+)
+
+target_include_directories(AnonymousVoice
+    PRIVATE
+        Source
+        Source/Audio
 )
 
 target_compile_definitions(AnonymousVoice
@@ -27,6 +37,10 @@ target_compile_definitions(AnonymousVoice
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
 )
+
+if (MSVC)
+    target_compile_options(AnonymousVoice PRIVATE /MP1)
+endif()
 
 target_link_libraries(AnonymousVoice
     PRIVATE
