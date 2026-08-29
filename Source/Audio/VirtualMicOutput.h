@@ -5,6 +5,9 @@
 class VirtualMicOutput final
 {
 public:
+    VirtualMicOutput() = default;
+    ~VirtualMicOutput() = default;
+
     void prepare(int capacitySamples = 48000);
     void reset();
 
