@@ -1,0 +1,35 @@
+# CMake / build output
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.cmake.user
+
+# Visual Studio
+.vs/
+**/.vs/
+*.VC.db
+*.VC.opendb
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Compiled output
+*.obj
+*.pdb
+*.ilk
+*.idb
+*.exe
+*.dll
+*.lib
+*.exp
+
+# Local backups
+backup-*/
+*.bak
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
