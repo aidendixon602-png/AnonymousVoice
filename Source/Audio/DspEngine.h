@@ -5,6 +5,9 @@
 class DspEngine final
 {
 public:
+    DspEngine() = default;
+    ~DspEngine() = default;
+
     struct Parameters
     {
         std::atomic<float> gateThresholdDb { -45.0f };
