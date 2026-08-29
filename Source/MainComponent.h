@@ -1,5 +1,8 @@
 #pragma once
+
 #include <JuceHeader.h>
+#include "Audio/DspEngine.h"
+#include "Audio/VirtualMicOutput.h"
 
 class MainComponent final : public juce::AudioAppComponent,
                             private juce::Timer
@@ -56,6 +59,7 @@ private:
     void configureNavButton(juce::TextButton& button, bool selected);
     void configureHorizontalSlider(juce::Slider& slider, double min, double max, double value, double interval);
     void drawPanel(juce::Graphics& g, juce::Rectangle<float> area, float radius = 16.0f) const;
+    void syncDspParameters();
 
     juce::Label brandLabel, brandSubLabel, userLabel;
     juce::TextButton voiceboxButton { "Voicebox" }, soundboardButton { "Soundboard" },
@@ -81,6 +85,9 @@ private:
     juce::Label statusLabel, cpuLabel, latencyLabel, versionLabel;
 
     juce::Rectangle<int> sidebarArea, voiceboxArea, presetArea, editorArea, ioArea;
+
+    DspEngine dspEngine;
+    VirtualMicOutput virtualMicOutput;
 
     std::atomic<float> masterGain { 1.0f };
     std::atomic<float> inputPeak { 0.0f };
