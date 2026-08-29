@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="420" viewBox="0 0 1400 420">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#050712"/><stop offset="1" stop-color="#0a1020"/></linearGradient>
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#b04cff"/><stop offset=".55" stop-color="#7c5cff"/><stop offset="1" stop-color="#35d7ff"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1400" height="420" rx="28" fill="url(#bg)"/>
+  <rect x="2" y="2" width="1396" height="416" rx="26" fill="none" stroke="url(#neon)" stroke-width="3" opacity=".75"/>
+  <g transform="translate(95 72)" filter="url(#glow)">
+    <circle cx="135" cy="135" r="118" fill="#080b16" stroke="#9b52ff" stroke-width="4"/>
+    <circle cx="135" cy="135" r="98" fill="none" stroke="#35d7ff" stroke-width="2" opacity=".35"/>
+    <path d="M79 83 Q135 47 191 83 L181 181 Q135 225 89 181 Z" fill="#f5f3ff"/>
+    <ellipse cx="109" cy="121" rx="22" ry="12" fill="#050712"/>
+    <ellipse cx="161" cy="121" rx="22" ry="12" fill="#050712"/>
+    <path d="M117 167 Q135 177 153 167" fill="none" stroke="#5d5270" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(390 90)">
+    <text x="0" y="72" font-family="Segoe UI,Arial,sans-serif" font-size="74" font-weight="700" fill="url(#neon)">AnonymousVoice</text>
+    <text x="2" y="122" font-family="Consolas,monospace" font-size="28" fill="#c3c8dc">Real-time voice changer for Windows</text>
+    <g transform="translate(0 166)" fill="none" stroke="url(#neon)" stroke-width="4" stroke-linecap="round">
+      <path d="M0 26 L18 26 26 10 36 44 48 18 60 34 72 6 84 48 96 24 114 24 126 14 138 38 150 20 162 28 180 28 194 8 208 46 222 24 238 24 252 16 266 34 280 24 300 24 318 12 334 40 350 18 364 30 380 24 404 24 420 8 436 46 452 20 468 30 490 24 514 24 532 16 548 34 562 24 590 24 610 12 628 40 646 18 660 28 686 24"/>
+    </g>
+    <g transform="translate(0 235)" font-family="Segoe UI,Arial,sans-serif" font-size="20">
+      <rect x="0" y="0" width="96" height="42" rx="21" fill="#15102a" stroke="#7f45d6"/><text x="48" y="27" text-anchor="middle" fill="#d8c8ff">C++20</text>
+      <rect x="112" y="0" width="96" height="42" rx="21" fill="#15102a" stroke="#7f45d6"/><text x="160" y="27" text-anchor="middle" fill="#d8c8ff">JUCE</text>
+      <rect x="224" y="0" width="118" height="42" rx="21" fill="#101b2a" stroke="#2e9fd8"/><text x="283" y="27" text-anchor="middle" fill="#b9eaff">Windows</text>
+      <rect x="358" y="0" width="94" height="42" rx="21" fill="#15102a" stroke="#7f45d6"/><text x="405" y="27" text-anchor="middle" fill="#d8c8ff">DSP</text>
+      <rect x="468" y="0" width="224" height="42" rx="21" fill="#0d211f" stroke="#20b8a9"/><text x="580" y="27" text-anchor="middle" fill="#aaf2ea">Xbox/Game Bar target</text>
+    </g>
+  </g>
+</svg>

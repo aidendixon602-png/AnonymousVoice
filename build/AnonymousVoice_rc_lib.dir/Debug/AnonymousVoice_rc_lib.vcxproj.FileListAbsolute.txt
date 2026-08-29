@@ -1,1 +1,0 @@
-C:\Dev\AnonymousVoice\build\AnonymousVoice_rc_lib.dir\Debug\AnonymousVoice_rc_lib.lib
