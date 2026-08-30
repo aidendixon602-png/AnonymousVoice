@@ -22,6 +22,7 @@ void LightweightAudioAppComponent::shutdownAudio()
 {
     deviceManager.removeAudioCallback(this);
     deviceManager.closeAudioDevice();
+    callbackBuffer.setSize(0, 0);
 }
 
 void LightweightAudioAppComponent::audioDeviceAboutToStart(juce::AudioIODevice* device)
@@ -29,12 +30,18 @@ void LightweightAudioAppComponent::audioDeviceAboutToStart(juce::AudioIODevice* 
     if (device == nullptr)
         return;
 
-    prepareToPlay(device->getCurrentBufferSizeSamples(), device->getCurrentSampleRate());
+    const auto blockSize = juce::jmax(1, device->getCurrentBufferSizeSamples());
+    const auto channelCapacity = juce::jmax(2, device->getOutputChannelNames().size());
+    callbackBuffer.setSize(channelCapacity, blockSize, false, true, true);
+    callbackBuffer.clear();
+
+    prepareToPlay(blockSize, device->getCurrentSampleRate());
 }
 
 void LightweightAudioAppComponent::audioDeviceStopped()
 {
     releaseResources();
+    callbackBuffer.clear();
 }
 
 void LightweightAudioAppComponent::audioDeviceIOCallbackWithContext(const float* const* inputChannelData,
@@ -44,22 +51,40 @@ void LightweightAudioAppComponent::audioDeviceIOCallbackWithContext(const float*
                                                                       int numSamples,
                                                                       const juce::AudioIODeviceCallbackContext&)
 {
-    if (numOutputChannels <= 0 || numSamples <= 0)
+    if (numSamples <= 0)
         return;
+
+    if (numOutputChannels <= 0 ||
+        callbackBuffer.getNumChannels() < numOutputChannels ||
+        callbackBuffer.getNumSamples() < numSamples)
+    {
+        for (int channel = 0; channel < numOutputChannels; ++channel)
+            if (outputChannelData != nullptr && outputChannelData[channel] != nullptr)
+                juce::FloatVectorOperations::clear(outputChannelData[channel], numSamples);
+
+        return;
+    }
+
+    const auto* monoInput = (inputChannelData != nullptr && numInputChannels > 0)
+        ? inputChannelData[0]
+        : nullptr;
 
     for (int channel = 0; channel < numOutputChannels; ++channel)
     {
-        auto* output = outputChannelData[channel];
-        if (output == nullptr)
-            continue;
-
-        if (numInputChannels > 0 && inputChannelData[0] != nullptr)
-            juce::FloatVectorOperations::copy(output, inputChannelData[0], numSamples);
+        if (monoInput != nullptr)
+            callbackBuffer.copyFrom(channel, 0, monoInput, numSamples);
         else
-            juce::FloatVectorOperations::clear(output, numSamples);
+            callbackBuffer.clear(channel, 0, numSamples);
     }
 
-    juce::AudioBuffer<float> buffer(outputChannelData, numOutputChannels, numSamples);
-    juce::AudioSourceChannelInfo info(&buffer, 0, numSamples);
+    juce::AudioSourceChannelInfo info(&callbackBuffer, 0, numSamples);
     getNextAudioBlock(info);
+
+    for (int channel = 0; channel < numOutputChannels; ++channel)
+    {
+        if (outputChannelData != nullptr && outputChannelData[channel] != nullptr)
+            juce::FloatVectorOperations::copy(outputChannelData[channel],
+                                              callbackBuffer.getReadPointer(channel),
+                                              numSamples);
+    }
 }
