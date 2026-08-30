@@ -55,11 +55,21 @@ private:
         juce::Slider amount;
     };
 
+    struct DiagnosticDeviceManager
+    {
+        double getCpuUsage() const noexcept { return 0.0; }
+    };
+
+    void setAudioChannels(int, int) noexcept {}
+    void shutdownAudio() noexcept {}
+
     void timerCallback() override;
     void configureNavButton(juce::TextButton& button, bool selected);
     void configureHorizontalSlider(juce::Slider& slider, double min, double max, double value, double interval);
     void drawPanel(juce::Graphics& g, juce::Rectangle<float> area, float radius = 16.0f) const;
     void syncDspParameters();
+
+    DiagnosticDeviceManager deviceManager;
 
     juce::Label brandLabel, brandSubLabel, userLabel;
     juce::TextButton voiceboxButton { "Voicebox" }, soundboardButton { "Soundboard" },
