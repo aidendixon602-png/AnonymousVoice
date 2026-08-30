@@ -48,8 +48,7 @@ target_link_libraries(AnonymousVoice
     PRIVATE
         juce::juce_audio_devices
         juce::juce_audio_basics
-        juce::juce_gui_extra
-        juce::juce_dsp
+        juce::juce_gui_basics
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags
