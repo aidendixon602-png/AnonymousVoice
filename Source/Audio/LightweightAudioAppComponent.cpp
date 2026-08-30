@@ -7,15 +7,8 @@ LightweightAudioAppComponent::~LightweightAudioAppComponent()
 
 void LightweightAudioAppComponent::setAudioChannels(int numInputChannels, int numOutputChannels)
 {
-    const auto error = deviceManager.initialise(numInputChannels,
-                                                numOutputChannels,
-                                                nullptr,
-                                                true);
-
-    if (error.isNotEmpty())
-        juce::Logger::writeToLog("Audio device initialisation failed: " + error);
-
-    deviceManager.addAudioCallback(this);
+    juce::ignoreUnused(numInputChannels, numOutputChannels);
+    juce::Logger::writeToLog("AnonymousVoice safe startup: audio device initialisation temporarily disabled.");
 }
 
 void LightweightAudioAppComponent::shutdownAudio()
