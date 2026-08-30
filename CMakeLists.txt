@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(AnonymousVoice VERSION 0.4.1 LANGUAGES CXX)
+project(AnonymousVoice VERSION 0.5.0 LANGUAGES CXX)
 
 add_executable(AnonymousVoice WIN32
     Source/Main.cpp
     Source/Audio/AudioRuntime.cpp
-    Source/Audio/WasapiCapture.cpp
-    Source/Audio/WasapiCapture.h
+    Source/Audio/WasapiMonitor.cpp
+    Source/Audio/WasapiMonitor.h
 )
 
 set_target_properties(AnonymousVoice PROPERTIES
