@@ -1,4 +1,4 @@
-#include "WasapiCapture.h"
+#include "WasapiMonitor.h"
 
 #include <windows.h>
 
@@ -15,7 +15,8 @@ namespace
     public:
         AudioRuntime()
         {
-            capture.start();
+            monitor.setEnabled(true);
+            monitor.start();
             updater = std::thread([this] { updateLoop(); });
         }
 
@@ -24,16 +25,22 @@ namespace
             stopRequested.store(true, std::memory_order_release);
             if (updater.joinable())
                 updater.join();
-            capture.stop();
+            monitor.stop();
         }
 
     private:
         void updateLoop()
         {
             HWND window = nullptr;
+            bool f8WasDown = false;
 
             while (!stopRequested.load(std::memory_order_acquire))
             {
+                const bool f8Down = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;
+                if (f8Down && !f8WasDown)
+                    monitor.setEnabled(!monitor.isEnabled());
+                f8WasDown = f8Down;
+
                 if (window == nullptr || !IsWindow(window))
                     window = FindWindowW(L"AnonymousVoiceMainWindow", nullptr);
 
@@ -41,27 +48,24 @@ namespace
                 {
                     wchar_t title[256] {};
 
-                    if (capture.isRunning())
+                    if (monitor.isRunning())
                     {
-                        const int levelPercent = std::clamp(static_cast<int>(std::lround(capture.peakLevel() * 100.0f)), 0, 100);
-                        const auto rate = capture.sampleRate();
-                        const auto channels = capture.channels();
-                        const double latency = capture.latencyMs();
-
+                        const int levelPercent = std::clamp(static_cast<int>(std::lround(monitor.peakLevel() * 100.0f)), 0, 100);
                         swprintf_s(title,
-                                   L"Anonymous Voice  |  MIC ONLINE  |  %u Hz / %u ch  |  Level %d%%  |  %.1f ms",
-                                   rate,
-                                   static_cast<unsigned>(channels),
-                                   levelPercent,
-                                   latency);
+                                   L"Anonymous Voice  |  DSP MONITOR %s  |  %u Hz / %u ch  |  Input %d%%  |  F8 toggles monitor",
+                                   monitor.isEnabled() ? L"ON" : L"OFF",
+                                   monitor.sampleRate(),
+                                   static_cast<unsigned>(monitor.channels()),
+                                   levelPercent);
                     }
-                    else if (capture.hasError())
+                    else if (monitor.hasError())
                     {
-                        swprintf_s(title, L"Anonymous Voice  |  MIC ERROR - check Windows microphone permissions/device");
+                        swprintf_s(title,
+                                   L"Anonymous Voice  |  AUDIO ERROR - check mic/speaker device and Windows permissions");
                     }
                     else
                     {
-                        swprintf_s(title, L"Anonymous Voice  |  Starting microphone...");
+                        swprintf_s(title, L"Anonymous Voice  |  Starting processed audio path...");
                     }
 
                     SetWindowTextW(window, title);
@@ -71,7 +75,7 @@ namespace
             }
         }
 
-        WasapiCapture capture;
+        WasapiMonitor monitor;
         std::thread updater;
         std::atomic<bool> stopRequested { false };
     };
