@@ -70,10 +70,7 @@ namespace
 
                 for (int i = 0; i < 10; ++i)
                 {
-                    const int key = i == 9 ? VK_F10 : (VK_F1 + i);
-                    if (key == VK_F8)
-                        continue;
-
+                    const int key = i == 9 ? '0' : ('1' + i);
                     const bool down = (GetAsyncKeyState(key) & 0x8000) != 0;
                     if (down && !presetWasDown[i])
                         monitor.setPreset(i);
@@ -110,7 +107,7 @@ namespace
                     {
                         const int levelPercent = std::clamp(static_cast<int>(std::lround(monitor.peakLevel() * 100.0f)), 0, 100);
                         swprintf_s(title,
-                                   L"Anonymous Voice | DSP %s | %s | %u Hz/%u ch | Input %d%% | CPU %.1f%% | Audio %.1f ms | F1-F10 presets / F8 monitor",
+                                   L"Anonymous Voice | DSP %s | %s | %u Hz/%u ch | Input %d%% | CPU %.1f%% | Audio %.1f ms | 1-0 presets / F8 monitor",
                                    monitor.isEnabled() ? L"ON" : L"OFF",
                                    presetName(monitor.preset()),
                                    monitor.sampleRate(),
