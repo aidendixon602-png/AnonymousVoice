@@ -33,7 +33,10 @@ private:
     double currentSampleRate = 48000.0;
     float compressorEnvelope = 0.0f;
 
-    juce::dsp::Chorus<float> chorus;
+    juce::AudioBuffer<float> chorusDelayBuffer;
+    int chorusWritePosition = 0;
+    float chorusPhase = 0.0f;
+
     juce::Reverb reverb;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspEngine)
