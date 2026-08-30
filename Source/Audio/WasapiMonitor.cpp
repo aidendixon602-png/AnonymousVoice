@@ -113,6 +113,32 @@ namespace
             }
         }
     };
+
+    struct DspPreset
+    {
+        float drive;
+        float lowpass;
+        float ringMix;
+        float ringHz;
+        float gain;
+    };
+
+    DspPreset paramsForPreset(int preset)
+    {
+        switch (std::clamp(preset, 0, 9))
+        {
+            case 0: return { 2.30f, 0.18f, 0.22f, 72.0f, 0.68f }; // Anonymous
+            case 1: return { 1.85f, 0.11f, 0.05f, 34.0f, 0.76f }; // Deep
+            case 2: return { 3.60f, 0.10f, 0.32f, 48.0f, 0.62f }; // Demon
+            case 3: return { 2.10f, 0.25f, 0.68f, 92.0f, 0.60f }; // Robot
+            case 4: return { 2.00f, 0.31f, 0.46f, 126.0f, 0.64f }; // Alien
+            case 5: return { 1.30f, 0.38f, 0.15f, 18.0f, 0.72f }; // Ethereal
+            case 6: return { 1.20f, 0.48f, 0.08f, 142.0f, 0.74f }; // Baby-ish bright
+            case 7: return { 3.00f, 0.21f, 0.12f, 31.0f, 0.60f }; // Radio
+            case 8: return { 2.25f, 0.16f, 0.40f, 64.0f, 0.64f }; // Witch
+            default:return { 1.60f, 0.30f, 0.15f, 55.0f, 0.70f }; // Custom
+        }
+    }
 }
 
 WasapiMonitor::~WasapiMonitor()
@@ -129,6 +155,7 @@ bool WasapiMonitor::start()
     error.store(false, std::memory_order_release);
     running.store(false, std::memory_order_release);
     peak.store(0.0f, std::memory_order_relaxed);
+    latency.store(0.0, std::memory_order_relaxed);
     worker = std::thread(&WasapiMonitor::audioThread, this);
     return true;
 }
@@ -163,6 +190,7 @@ void WasapiMonitor::audioThread()
     UINT32 renderBufferFrames = 0;
     SampleCodec codec {};
     std::size_t fifoCapacityFrames = 0;
+    std::size_t maxQueuedFrames = 0;
     std::vector<float> fifo;
     std::vector<BYTE> silentFrame;
     std::size_t readFrame = 0;
@@ -170,7 +198,6 @@ void WasapiMonitor::audioThread()
     std::size_t queuedFrames = 0;
     float lowpassState = 0.0f;
     double phase = 0.0;
-    double phaseStep = 0.0;
     std::function<float(const BYTE*)> pushFrame;
 
     hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
@@ -226,15 +253,16 @@ void WasapiMonitor::audioThread()
     hr = renderClient->GetBufferSize(&renderBufferFrames);
     if (FAILED(hr)) goto cleanup;
 
-    fifoCapacityFrames = std::max<std::size_t>(static_cast<std::size_t>(format->nSamplesPerSec) * 2u,
-                                                static_cast<std::size_t>(renderBufferFrames) * 8u);
+    fifoCapacityFrames = std::max<std::size_t>(static_cast<std::size_t>(format->nSamplesPerSec) / 4u,
+                                                static_cast<std::size_t>(renderBufferFrames) * 2u);
+    maxQueuedFrames = std::max<std::size_t>(static_cast<std::size_t>(format->nSamplesPerSec) / 50u,
+                                             static_cast<std::size_t>(renderBufferFrames) / 4u);
     fifo.assign(fifoCapacityFrames * codec.channels, 0.0f);
     silentFrame.assign(codec.blockAlign, 0);
-    phaseStep = 2.0 * 3.14159265358979323846 * 72.0 / static_cast<double>(format->nSamplesPerSec);
 
     pushFrame = [&](const BYTE* frame) -> float
     {
-        if (queuedFrames >= fifoCapacityFrames)
+        while (queuedFrames >= maxQueuedFrames && queuedFrames > 0)
         {
             readFrame = (readFrame + 1) % fifoCapacityFrames;
             --queuedFrames;
@@ -245,17 +273,21 @@ void WasapiMonitor::audioThread()
             mono += codec.read(frame, ch);
         mono /= static_cast<float>(codec.channels);
 
-        const float driven = std::tanh(mono * 2.25f);
-        lowpassState += 0.18f * (driven - lowpassState);
+        const DspPreset p = paramsForPreset(presetIndex.load(std::memory_order_acquire));
+        const float driven = std::tanh(mono * p.drive);
+        lowpassState += p.lowpass * (driven - lowpassState);
 
         const float ring = static_cast<float>(std::sin(phase));
+        const double phaseStep = 2.0 * 3.14159265358979323846 * static_cast<double>(p.ringHz) /
+                                 static_cast<double>(format->nSamplesPerSec);
         phase += phaseStep;
         if (phase >= 2.0 * 3.14159265358979323846)
             phase -= 2.0 * 3.14159265358979323846;
 
-        const float processed = std::clamp(lowpassState * 0.78f + (lowpassState * ring) * 0.22f,
+        const float processed = std::clamp(lowpassState * (1.0f - p.ringMix) +
+                                           (lowpassState * ring) * p.ringMix,
                                            -1.0f, 1.0f);
-        const float output = enabled.load(std::memory_order_acquire) ? processed * 0.65f : 0.0f;
+        const float output = enabled.load(std::memory_order_acquire) ? processed * p.gain : 0.0f;
 
         const std::size_t base = writeFrame * codec.channels;
         for (std::uint16_t ch = 0; ch < codec.channels; ++ch)
@@ -318,6 +350,13 @@ void WasapiMonitor::audioThread()
         hr = renderClient->GetCurrentPadding(&padding);
         if (FAILED(hr)) break;
 
+        if (format->nSamplesPerSec > 0)
+        {
+            const double bufferedFrames = static_cast<double>(queuedFrames) + static_cast<double>(padding);
+            latency.store(bufferedFrames * 1000.0 / static_cast<double>(format->nSamplesPerSec),
+                          std::memory_order_relaxed);
+        }
+
         const UINT32 writable = renderBufferFrames > padding ? renderBufferFrames - padding : 0;
         if (writable > 0)
         {
@@ -348,7 +387,7 @@ void WasapiMonitor::audioThread()
             if (FAILED(hr)) break;
         }
 
-        Sleep(2);
+        Sleep(1);
     }
 
 cleanup:
