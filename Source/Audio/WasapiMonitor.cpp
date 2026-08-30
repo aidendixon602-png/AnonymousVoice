@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 namespace
@@ -158,8 +159,22 @@ void WasapiMonitor::audioThread()
     IAudioRenderClient* renderService = nullptr;
     WAVEFORMATEX* format = nullptr;
 
-    HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
-                                  __uuidof(IMMDeviceEnumerator), reinterpret_cast<void**>(&enumerator));
+    HRESULT hr = S_OK;
+    UINT32 renderBufferFrames = 0;
+    SampleCodec codec {};
+    std::size_t fifoCapacityFrames = 0;
+    std::vector<float> fifo;
+    std::vector<BYTE> silentFrame;
+    std::size_t readFrame = 0;
+    std::size_t writeFrame = 0;
+    std::size_t queuedFrames = 0;
+    float lowpassState = 0.0f;
+    double phase = 0.0;
+    double phaseStep = 0.0;
+    std::function<float(const BYTE*)> pushFrame;
+
+    hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+                          __uuidof(IMMDeviceEnumerator), reinterpret_cast<void**>(&enumerator));
     if (FAILED(hr)) goto cleanup;
 
     hr = enumerator->GetDefaultAudioEndpoint(eCapture, eCommunications, &captureDevice);
@@ -169,22 +184,22 @@ void WasapiMonitor::audioThread()
     hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &renderDevice);
     if (FAILED(hr)) goto cleanup;
 
-    hr = captureDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(&captureClient));
+    hr = captureDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
+                                 reinterpret_cast<void**>(&captureClient));
     if (FAILED(hr)) goto cleanup;
 
-    hr = renderDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(&renderClient));
+    hr = renderDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
+                                reinterpret_cast<void**>(&renderClient));
     if (FAILED(hr)) goto cleanup;
 
     hr = captureClient->GetMixFormat(&format);
     if (FAILED(hr) || format == nullptr) goto cleanup;
 
+    codec = SampleCodec::from(format);
+    if (codec.kind == SampleCodec::Kind::unsupported || codec.channels == 0 || codec.blockAlign == 0)
     {
-        const auto codec = SampleCodec::from(format);
-        if (codec.kind == SampleCodec::Kind::unsupported || codec.channels == 0)
-        {
-            hr = E_FAIL;
-            goto cleanup;
-        }
+        hr = E_FAIL;
+        goto cleanup;
     }
 
     rate.store(format->nSamplesPerSec, std::memory_order_relaxed);
@@ -208,23 +223,16 @@ void WasapiMonitor::audioThread()
     hr = renderClient->GetService(__uuidof(IAudioRenderClient), reinterpret_cast<void**>(&renderService));
     if (FAILED(hr)) goto cleanup;
 
-    UINT32 renderBufferFrames = 0;
     hr = renderClient->GetBufferSize(&renderBufferFrames);
     if (FAILED(hr)) goto cleanup;
 
-    const SampleCodec codec = SampleCodec::from(format);
-    const std::size_t fifoCapacityFrames = std::max<std::size_t>(static_cast<std::size_t>(format->nSamplesPerSec) * 2u,
-                                                                 static_cast<std::size_t>(renderBufferFrames) * 8u);
-    std::vector<float> fifo(fifoCapacityFrames * codec.channels, 0.0f);
-    std::size_t readFrame = 0;
-    std::size_t writeFrame = 0;
-    std::size_t queuedFrames = 0;
+    fifoCapacityFrames = std::max<std::size_t>(static_cast<std::size_t>(format->nSamplesPerSec) * 2u,
+                                                static_cast<std::size_t>(renderBufferFrames) * 8u);
+    fifo.assign(fifoCapacityFrames * codec.channels, 0.0f);
+    silentFrame.assign(codec.blockAlign, 0);
+    phaseStep = 2.0 * 3.14159265358979323846 * 72.0 / static_cast<double>(format->nSamplesPerSec);
 
-    float lowpassState = 0.0f;
-    double phase = 0.0;
-    const double phaseStep = 2.0 * 3.14159265358979323846 * 72.0 / static_cast<double>(format->nSamplesPerSec);
-
-    auto pushFrame = [&](const BYTE* frame)
+    pushFrame = [&](const BYTE* frame) -> float
     {
         if (queuedFrames >= fifoCapacityFrames)
         {
@@ -239,12 +247,14 @@ void WasapiMonitor::audioThread()
 
         const float driven = std::tanh(mono * 2.25f);
         lowpassState += 0.18f * (driven - lowpassState);
+
         const float ring = static_cast<float>(std::sin(phase));
         phase += phaseStep;
         if (phase >= 2.0 * 3.14159265358979323846)
             phase -= 2.0 * 3.14159265358979323846;
 
-        const float processed = std::clamp(lowpassState * 0.78f + (lowpassState * ring) * 0.22f, -1.0f, 1.0f);
+        const float processed = std::clamp(lowpassState * 0.78f + (lowpassState * ring) * 0.22f,
+                                           -1.0f, 1.0f);
         const float output = enabled.load(std::memory_order_acquire) ? processed * 0.65f : 0.0f;
 
         const std::size_t base = writeFrame * codec.channels;
@@ -258,6 +268,7 @@ void WasapiMonitor::audioThread()
 
     hr = renderClient->Start();
     if (FAILED(hr)) goto cleanup;
+
     hr = captureClient->Start();
     if (FAILED(hr)) goto cleanup;
 
@@ -277,28 +288,31 @@ void WasapiMonitor::audioThread()
             DWORD flags = 0;
             UINT64 devPos = 0;
             UINT64 qpcPos = 0;
+
             hr = captureService->GetBuffer(&data, &frames, &flags, &devPos, &qpcPos);
             if (FAILED(hr)) break;
 
             if ((flags & AUDCLNT_BUFFERFLAGS_SILENT) == 0 && data != nullptr)
             {
                 for (UINT32 f = 0; f < frames; ++f)
-                    packetPeak = std::max(packetPeak, pushFrame(data + static_cast<std::size_t>(f) * codec.blockAlign));
+                    packetPeak = std::max(packetPeak,
+                                          pushFrame(data + static_cast<std::size_t>(f) * codec.blockAlign));
             }
             else
             {
-                std::vector<BYTE> silentFrame(codec.blockAlign, 0);
                 for (UINT32 f = 0; f < frames; ++f)
                     pushFrame(silentFrame.data());
             }
 
             captureService->ReleaseBuffer(frames);
+
             hr = captureService->GetNextPacketSize(&packetFrames);
             if (FAILED(hr)) break;
         }
 
         const float oldPeak = peak.load(std::memory_order_relaxed);
-        peak.store(std::clamp(packetPeak >= oldPeak ? packetPeak : oldPeak * 0.88f, 0.0f, 1.0f), std::memory_order_relaxed);
+        peak.store(std::clamp(packetPeak >= oldPeak ? packetPeak : oldPeak * 0.88f, 0.0f, 1.0f),
+                   std::memory_order_relaxed);
 
         UINT32 padding = 0;
         hr = renderClient->GetCurrentPadding(&padding);
@@ -319,6 +333,7 @@ void WasapiMonitor::audioThread()
                     const std::size_t base = readFrame * codec.channels;
                     for (std::uint16_t ch = 0; ch < codec.channels; ++ch)
                         codec.write(frame, ch, fifo[base + ch]);
+
                     readFrame = (readFrame + 1) % fifoCapacityFrames;
                     --queuedFrames;
                 }
@@ -338,12 +353,18 @@ void WasapiMonitor::audioThread()
 
 cleanup:
     running.store(false, std::memory_order_release);
-    if (captureClient != nullptr) captureClient->Stop();
-    if (renderClient != nullptr) renderClient->Stop();
+
+    if (captureClient != nullptr)
+        captureClient->Stop();
+    if (renderClient != nullptr)
+        renderClient->Stop();
+
     if (FAILED(hr) && !stopRequested.load(std::memory_order_acquire))
         error.store(true, std::memory_order_release);
 
-    if (format != nullptr) CoTaskMemFree(format);
+    if (format != nullptr)
+        CoTaskMemFree(format);
+
     releaseCom(renderService);
     releaseCom(captureService);
     releaseCom(renderClient);
@@ -352,5 +373,6 @@ cleanup:
     releaseCom(captureDevice);
     releaseCom(enumerator);
 
-    if (SUCCEEDED(initHr)) CoUninitialize();
+    if (SUCCEEDED(initHr))
+        CoUninitialize();
 }
