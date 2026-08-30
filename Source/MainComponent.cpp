@@ -1,5 +1,9 @@
 #include "MainComponent.h"
 
+#if JUCE_WINDOWS
+ #include <windows.h>
+#endif
+
 namespace
 {
     const auto background = juce::Colour::fromRGB(5, 8, 14);
@@ -11,6 +15,15 @@ namespace
     const auto purple = juce::Colour::fromRGB(161, 72, 255);
     const auto teal = juce::Colour::fromRGB(40, 209, 204);
     const auto green = juce::Colour::fromRGB(45, 214, 119);
+
+    void startupCheckpoint(const wchar_t* message)
+    {
+       #if JUCE_WINDOWS
+        ::MessageBoxW(nullptr, message, L"AnonymousVoice UI diagnostic", MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
+       #else
+        juce::ignoreUnused(message);
+       #endif
+    }
 }
 
 MainComponent::VoiceCard::VoiceCard(juce::String nameToUse, juce::String iconToUse, bool selectedToUse)
@@ -96,6 +109,7 @@ void MainComponent::EffectCard::resized()
 MainComponent::MainComponent()
 {
     setSize(1600, 900);
+    startupCheckpoint(L"UI Checkpoint A: MainComponent entered and setSize completed.");
 
     brandLabel.setText("ANONYMOUS", juce::dontSendNotification);
     brandLabel.setFont(juce::FontOptions(24.0f, juce::Font::bold));
@@ -139,6 +153,7 @@ MainComponent::MainComponent()
     categoryBox.setColour(juce::ComboBox::outlineColourId, border);
     categoryBox.setColour(juce::ComboBox::textColourId, text);
     addAndMakeVisible(categoryBox);
+    startupCheckpoint(L"UI Checkpoint B: Sidebar, search, and category controls completed.");
 
     const std::array<std::pair<const char*, const char*>, 10> cards {{
         {"Anonymous", "A"}, {"Deep", "D"}, {"Demon", "X"}, {"Robot", "R"}, {"Alien", "O"},
@@ -150,6 +165,7 @@ MainComponent::MainComponent()
         voiceCards[i] = std::make_unique<VoiceCard>(cards[i].first, cards[i].second, i == 0);
         addAndMakeVisible(*voiceCards[i]);
     }
+    startupCheckpoint(L"UI Checkpoint C: Voice preset cards completed.");
 
     presetTitle.setText("PRESET DETAILS", juce::dontSendNotification);
     presetTitle.setFont(juce::FontOptions(18.0f, juce::Font::bold));
@@ -186,6 +202,7 @@ MainComponent::MainComponent()
     editorTitle.setFont(juce::FontOptions(18.0f, juce::Font::bold));
     editorTitle.setColour(juce::Label::textColourId, text);
     addAndMakeVisible(editorTitle);
+    startupCheckpoint(L"UI Checkpoint D: Preset details and top sliders completed.");
 
     effectCards[0] = std::make_unique<EffectCard>("Gate", "Threshold", -80.0, 0.0, -45.0, " dB");
     effectCards[1] = std::make_unique<EffectCard>("Pitch", "Pitch Shift", -12.0, 12.0, -5.0, " st");
@@ -197,6 +214,7 @@ MainComponent::MainComponent()
     effectCards[7] = std::make_unique<EffectCard>("Reverb", "Room Size", 0.0, 100.0, 20.0, "%");
     effectCards[8] = std::make_unique<EffectCard>("Limiter", "Threshold", -12.0, 0.0, -1.0, " dB");
     for (auto& effect : effectCards) addAndMakeVisible(*effect);
+    startupCheckpoint(L"UI Checkpoint E: Effect cards completed.");
 
     inputLabel.setText("AUDIO INPUT", juce::dontSendNotification);
     monitorLabel.setText("LIVE MONITOR", juce::dontSendNotification);
@@ -214,12 +232,14 @@ MainComponent::MainComponent()
     statusLabel.setText("Protection Active", juce::dontSendNotification); statusLabel.setColour(juce::Label::textColourId, green); addAndMakeVisible(statusLabel);
     cpuLabel.setText("CPU: --", juce::dontSendNotification); latencyLabel.setText("Latency: --", juce::dontSendNotification); versionLabel.setText("v0.2.0-dev", juce::dontSendNotification);
     for (auto* label : { &cpuLabel, &latencyLabel, &versionLabel }) { label->setColour(juce::Label::textColourId, muted); addAndMakeVisible(*label); }
+    startupCheckpoint(L"UI Checkpoint F: I/O and footer controls completed.");
 
     pitchSlider.onValueChange = [this] { if (effectCards[1]) effectCards[1]->slider().setValue(pitchSlider.getValue(), juce::dontSendNotification); };
     formantSlider.onValueChange = [this] { if (effectCards[2]) effectCards[2]->slider().setValue(formantSlider.getValue(), juce::dontSendNotification); };
 
     setAudioChannels(1, 2);
     startTimerHz(30);
+    startupCheckpoint(L"UI Checkpoint G: MainComponent constructor completed.");
 }
 
 MainComponent::~MainComponent()
