@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(AnonymousVoice VERSION 0.1.0 LANGUAGES CXX)
+project(AnonymousVoice VERSION 0.3.0 LANGUAGES CXX)
 
 add_executable(AnonymousVoice WIN32
     Source/Main.cpp
@@ -33,4 +33,11 @@ target_link_libraries(AnonymousVoice PRIVATE
     user32
     gdi32
     dwmapi
+)
+
+add_custom_command(TARGET AnonymousVoice POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:AnonymousVoice>"
+            "${CMAKE_SOURCE_DIR}/Anonymous Voice.exe"
+    COMMENT "Copying Anonymous Voice.exe to the project root for easy launching"
 )
