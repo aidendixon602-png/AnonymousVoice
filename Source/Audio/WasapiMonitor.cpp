@@ -13,6 +13,8 @@
 
 namespace
 {
+    constexpr double pi = 3.14159265358979323846;
+
     template <typename T>
     void releaseCom(T*& p)
     {
@@ -116,29 +118,122 @@ namespace
 
     struct DspPreset
     {
+        float semitones;
         float drive;
-        float lowpass;
+        float body;
+        float lowpassHz;
+        float compressor;
+        float mix;
+        float gain;
         float ringMix;
         float ringHz;
-        float gain;
     };
 
     DspPreset paramsForPreset(int preset)
     {
         switch (std::clamp(preset, 0, 9))
         {
-            case 0: return { 2.30f, 0.18f, 0.22f, 72.0f, 0.68f }; // Anonymous
-            case 1: return { 1.85f, 0.11f, 0.05f, 34.0f, 0.76f }; // Deep
-            case 2: return { 3.60f, 0.10f, 0.32f, 48.0f, 0.62f }; // Demon
-            case 3: return { 2.10f, 0.25f, 0.68f, 92.0f, 0.60f }; // Robot
-            case 4: return { 2.00f, 0.31f, 0.46f, 126.0f, 0.64f }; // Alien
-            case 5: return { 1.30f, 0.38f, 0.15f, 18.0f, 0.72f }; // Ethereal
-            case 6: return { 1.20f, 0.48f, 0.08f, 142.0f, 0.74f }; // Baby-ish bright
-            case 7: return { 3.00f, 0.21f, 0.12f, 31.0f, 0.60f }; // Radio
-            case 8: return { 2.25f, 0.16f, 0.40f, 64.0f, 0.64f }; // Witch
-            default:return { 1.60f, 0.30f, 0.15f, 55.0f, 0.70f }; // Custom
+            case 0: return { -5.0f, 1.55f, 0.46f, 6200.0f, 0.72f, 1.00f, 0.92f, 0.00f, 0.0f }; // Anonymous
+            case 1: return { -7.0f, 1.35f, 0.55f, 5600.0f, 0.62f, 1.00f, 0.92f, 0.00f, 0.0f }; // Deep
+            case 2: return { -8.0f, 2.20f, 0.62f, 4700.0f, 0.78f, 1.00f, 0.82f, 0.08f, 46.0f }; // Demon
+            case 3: return { -1.0f, 1.65f, 0.16f, 7200.0f, 0.55f, 0.92f, 0.82f, 0.58f, 94.0f }; // Robot
+            case 4: return {  3.0f, 1.45f, 0.05f, 8200.0f, 0.52f, 0.95f, 0.86f, 0.22f, 126.0f }; // Alien
+            case 5: return {  4.0f, 1.10f, 0.02f, 9800.0f, 0.38f, 0.82f, 0.90f, 0.00f, 0.0f }; // Ethereal
+            case 6: return {  7.0f, 1.05f, 0.00f, 11000.0f, 0.42f, 1.00f, 0.88f, 0.00f, 0.0f }; // Baby
+            case 7: return { -2.0f, 2.35f, 0.28f, 3900.0f, 0.82f, 0.86f, 0.72f, 0.00f, 0.0f }; // Radio
+            case 8: return { -3.0f, 1.65f, 0.30f, 7000.0f, 0.58f, 0.92f, 0.84f, 0.24f, 61.0f }; // Witch
+            default:return {  0.0f, 1.00f, 0.00f, 12000.0f, 0.20f, 1.00f, 0.92f, 0.00f, 0.0f }; // Custom
         }
     }
+
+    class GranularPitch
+    {
+    public:
+        void initialise(std::uint32_t sampleRate)
+        {
+            rate = std::max<std::uint32_t>(sampleRate, 8000u);
+            grainSamples = std::max<std::size_t>(128u, static_cast<std::size_t>(rate * 0.034));
+            minimumDelay = std::max<std::size_t>(32u, static_cast<std::size_t>(rate * 0.006));
+            const std::size_t bufferSize = std::max<std::size_t>(grainSamples * 4u + minimumDelay + 8u,
+                                                                  static_cast<std::size_t>(rate / 4u));
+            buffer.assign(bufferSize, 0.0f);
+            writePos = 0;
+            phase = 0.0;
+            setSemitones(0.0f);
+        }
+
+        void setSemitones(float semitones)
+        {
+            ratio = std::pow(2.0, static_cast<double>(semitones) / 12.0);
+        }
+
+        float process(float input)
+        {
+            if (buffer.empty())
+                return input;
+
+            buffer[writePos] = input;
+
+            if (std::abs(ratio - 1.0) < 0.0001)
+            {
+                writePos = (writePos + 1) % buffer.size();
+                return input;
+            }
+
+            const double p1 = phase;
+            double p2 = phase + 0.5;
+            if (p2 >= 1.0)
+                p2 -= 1.0;
+
+            const float a = readGrain(p1);
+            const float b = readGrain(p2);
+            const double w1 = 0.5 - 0.5 * std::cos(2.0 * pi * p1);
+            const double w2 = 0.5 - 0.5 * std::cos(2.0 * pi * p2);
+            const double weight = std::max(0.001, w1 + w2);
+            const float output = static_cast<float>((a * w1 + b * w2) / weight);
+
+            phase += 1.0 / static_cast<double>(grainSamples);
+            if (phase >= 1.0)
+                phase -= 1.0;
+
+            writePos = (writePos + 1) % buffer.size();
+            return output;
+        }
+
+        double algorithmicLatencyMs() const noexcept
+        {
+            return rate > 0 ? static_cast<double>(minimumDelay) * 1000.0 / static_cast<double>(rate) : 0.0;
+        }
+
+    private:
+        float readGrain(double grainPhase) const
+        {
+            const double sweep = std::abs(1.0 - ratio) * static_cast<double>(grainSamples);
+            const double delay = ratio < 1.0
+                ? static_cast<double>(minimumDelay) + grainPhase * sweep
+                : static_cast<double>(minimumDelay) + (1.0 - grainPhase) * sweep;
+
+            double read = static_cast<double>(writePos) - delay;
+            const double size = static_cast<double>(buffer.size());
+            while (read < 0.0)
+                read += size;
+            while (read >= size)
+                read -= size;
+
+            const std::size_t i0 = static_cast<std::size_t>(read);
+            const std::size_t i1 = (i0 + 1) % buffer.size();
+            const float frac = static_cast<float>(read - static_cast<double>(i0));
+            return buffer[i0] + (buffer[i1] - buffer[i0]) * frac;
+        }
+
+        std::vector<float> buffer;
+        std::size_t writePos = 0;
+        std::size_t grainSamples = 128;
+        std::size_t minimumDelay = 32;
+        std::uint32_t rate = 0;
+        double phase = 0.0;
+        double ratio = 1.0;
+    };
 }
 
 WasapiMonitor::~WasapiMonitor()
@@ -196,8 +291,17 @@ void WasapiMonitor::audioThread()
     std::size_t readFrame = 0;
     std::size_t writeFrame = 0;
     std::size_t queuedFrames = 0;
+    GranularPitch pitchShifter;
+    float hpLowState = 0.0f;
+    float bodyState = 0.0f;
     float lowpassState = 0.0f;
-    double phase = 0.0;
+    float compressorEnvelope = 0.0f;
+    double ringPhase = 0.0;
+    int cachedPreset = -1;
+    DspPreset cachedParams {};
+    float hpCoeff = 0.0f;
+    float bodyCoeff = 0.0f;
+    float lpCoeff = 0.0f;
     std::function<float(const BYTE*)> pushFrame;
 
     hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
@@ -231,6 +335,7 @@ void WasapiMonitor::audioThread()
 
     rate.store(format->nSamplesPerSec, std::memory_order_relaxed);
     channelCount.store(format->nChannels, std::memory_order_relaxed);
+    pitchShifter.initialise(format->nSamplesPerSec);
 
     hr = captureClient->Initialize(AUDCLNT_SHAREMODE_SHARED,
                                    AUDCLNT_STREAMFLAGS_NOPERSIST,
@@ -253,10 +358,10 @@ void WasapiMonitor::audioThread()
     hr = renderClient->GetBufferSize(&renderBufferFrames);
     if (FAILED(hr)) goto cleanup;
 
-    fifoCapacityFrames = std::max<std::size_t>(static_cast<std::size_t>(format->nSamplesPerSec) / 4u,
+    fifoCapacityFrames = std::max<std::size_t>(static_cast<std::size_t>(format->nSamplesPerSec) / 5u,
                                                 static_cast<std::size_t>(renderBufferFrames) * 2u);
-    maxQueuedFrames = std::max<std::size_t>(static_cast<std::size_t>(format->nSamplesPerSec) / 50u,
-                                             static_cast<std::size_t>(renderBufferFrames) / 4u);
+    maxQueuedFrames = std::max<std::size_t>(static_cast<std::size_t>(format->nSamplesPerSec) / 100u,
+                                             static_cast<std::size_t>(renderBufferFrames) / 6u);
     fifo.assign(fifoCapacityFrames * codec.channels, 0.0f);
     silentFrame.assign(codec.blockAlign, 0);
 
@@ -273,21 +378,63 @@ void WasapiMonitor::audioThread()
             mono += codec.read(frame, ch);
         mono /= static_cast<float>(codec.channels);
 
-        const DspPreset p = paramsForPreset(presetIndex.load(std::memory_order_acquire));
-        const float driven = std::tanh(mono * p.drive);
-        lowpassState += p.lowpass * (driven - lowpassState);
+        const int presetNow = std::clamp(presetIndex.load(std::memory_order_acquire), 0, 9);
+        if (presetNow != cachedPreset)
+        {
+            cachedPreset = presetNow;
+            cachedParams = paramsForPreset(cachedPreset);
+            pitchShifter.setSemitones(cachedParams.semitones);
 
-        const float ring = static_cast<float>(std::sin(phase));
-        const double phaseStep = 2.0 * 3.14159265358979323846 * static_cast<double>(p.ringHz) /
-                                 static_cast<double>(format->nSamplesPerSec);
-        phase += phaseStep;
-        if (phase >= 2.0 * 3.14159265358979323846)
-            phase -= 2.0 * 3.14159265358979323846;
+            const float sr = static_cast<float>(format->nSamplesPerSec);
+            hpCoeff = 1.0f - std::exp(-2.0f * static_cast<float>(pi) * 82.0f / sr);
+            bodyCoeff = 1.0f - std::exp(-2.0f * static_cast<float>(pi) * 620.0f / sr);
+            lpCoeff = 1.0f - std::exp(-2.0f * static_cast<float>(pi) * cachedParams.lowpassHz / sr);
+        }
 
-        const float processed = std::clamp(lowpassState * (1.0f - p.ringMix) +
-                                           (lowpassState * ring) * p.ringMix,
-                                           -1.0f, 1.0f);
-        const float output = enabled.load(std::memory_order_acquire) ? processed * p.gain : 0.0f;
+        // Remove sub-bass/rumble before the voice effect.
+        hpLowState += hpCoeff * (mono - hpLowState);
+        const float highPassed = mono - hpLowState;
+
+        // Time-domain dual-grain pitch shifter. This changes pitch without changing stream duration.
+        const float pitched = pitchShifter.process(highPassed);
+
+        // Formant-colour approximation: reinforce low vocal body independently from pitch.
+        bodyState += bodyCoeff * (pitched - bodyState);
+        float coloured = pitched * (1.0f - cachedParams.body) + bodyState * (1.0f + cachedParams.body * 0.70f);
+
+        // Mild saturation followed by bandwidth shaping.
+        coloured = std::tanh(coloured * cachedParams.drive);
+        lowpassState += lpCoeff * (coloured - lowpassState);
+        float processed = lowpassState;
+
+        // Optional modulation remains only on synthetic presets, not Anonymous/Deep.
+        if (cachedParams.ringMix > 0.001f)
+        {
+            const float ring = static_cast<float>(std::sin(ringPhase));
+            ringPhase += 2.0 * pi * static_cast<double>(cachedParams.ringHz) /
+                         static_cast<double>(format->nSamplesPerSec);
+            if (ringPhase >= 2.0 * pi)
+                ringPhase -= 2.0 * pi;
+            processed = processed * (1.0f - cachedParams.ringMix) + (processed * ring) * cachedParams.ringMix;
+        }
+
+        // Fast voice compressor. Keeps quiet speech present without crushing transients completely.
+        const float magnitude = std::abs(processed);
+        const float envCoeff = magnitude > compressorEnvelope ? 0.16f : 0.008f;
+        compressorEnvelope += envCoeff * (magnitude - compressorEnvelope);
+        const float threshold = 0.30f;
+        float compressorGain = 1.0f;
+        if (compressorEnvelope > threshold)
+        {
+            const float over = compressorEnvelope / threshold;
+            compressorGain = std::pow(over, -cachedParams.compressor * 0.72f);
+        }
+        processed *= compressorGain;
+
+        // Dry/wet mix and safety limiter.
+        processed = mono * (1.0f - cachedParams.mix) + processed * cachedParams.mix;
+        processed = std::tanh(processed * cachedParams.gain * 1.30f) * 0.92f;
+        const float output = enabled.load(std::memory_order_acquire) ? processed : 0.0f;
 
         const std::size_t base = writeFrame * codec.channels;
         for (std::uint16_t ch = 0; ch < codec.channels; ++ch)
@@ -353,8 +500,8 @@ void WasapiMonitor::audioThread()
         if (format->nSamplesPerSec > 0)
         {
             const double bufferedFrames = static_cast<double>(queuedFrames) + static_cast<double>(padding);
-            latency.store(bufferedFrames * 1000.0 / static_cast<double>(format->nSamplesPerSec),
-                          std::memory_order_relaxed);
+            const double deviceAndQueueMs = bufferedFrames * 1000.0 / static_cast<double>(format->nSamplesPerSec);
+            latency.store(deviceAndQueueMs + pitchShifter.algorithmicLatencyMs(), std::memory_order_relaxed);
         }
 
         const UINT32 writable = renderBufferFrames > padding ? renderBufferFrames - padding : 0;
