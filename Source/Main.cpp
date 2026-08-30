@@ -249,7 +249,7 @@ namespace
             case 3:
             {
                 HPEN pen = CreatePen(PS_SOLID, 2, accent);
-                HBRUSH brush = GetStockBrush(NULL_BRUSH);
+                HBRUSH brush = static_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
                 HGDIOBJ oldPen = SelectObject(dc, pen);
                 HGDIOBJ oldBrush = SelectObject(dc, brush);
                 Rectangle(dc, cx - 10, cy - 9, cx + 10, cy + 9);
