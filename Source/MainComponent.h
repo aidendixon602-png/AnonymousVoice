@@ -1,10 +1,11 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "Audio/LightweightAudioAppComponent.h"
 #include "Audio/DspEngine.h"
 #include "Audio/VirtualMicOutput.h"
 
-class MainComponent final : public juce::AudioAppComponent,
+class MainComponent final : public LightweightAudioAppComponent,
                             private juce::Timer
 {
 public:

@@ -2,20 +2,13 @@
 
 #include <cmath>
 
-void DspEngine::prepare(double sampleRate, int maxBlockSize, int numChannels)
+void DspEngine::prepare(double sampleRate, int, int numChannels)
 {
     currentSampleRate = sampleRate > 0.0 ? sampleRate : 48000.0;
 
-    juce::dsp::ProcessSpec spec;
-    spec.sampleRate = currentSampleRate;
-    spec.maximumBlockSize = static_cast<juce::uint32>(juce::jmax(1, maxBlockSize));
-    spec.numChannels = static_cast<juce::uint32>(juce::jmax(1, numChannels));
-
-    chorus.prepare(spec);
-    chorus.setRate(0.25f);
-    chorus.setCentreDelay(7.0f);
-    chorus.setFeedback(0.0f);
-    chorus.setMix(0.30f);
+    const auto channels = juce::jmax(1, numChannels);
+    const auto maxDelaySamples = juce::jmax(64, static_cast<int>(currentSampleRate * 0.030));
+    chorusDelayBuffer.setSize(channels, maxDelaySamples + 2, false, true, true);
 
     reset();
 }
@@ -23,7 +16,9 @@ void DspEngine::prepare(double sampleRate, int maxBlockSize, int numChannels)
 void DspEngine::reset()
 {
     compressorEnvelope = 0.0f;
-    chorus.reset();
+    chorusWritePosition = 0;
+    chorusPhase = 0.0f;
+    chorusDelayBuffer.clear();
     reverb.reset();
 }
 
@@ -74,12 +69,45 @@ void DspEngine::process(juce::AudioBuffer<float>& buffer, int startSample, int n
         }
     }
 
-    juce::dsp::AudioBlock<float> block(buffer);
-    auto subBlock = block.getSubBlock(static_cast<size_t>(startSample), static_cast<size_t>(numSamples));
-    juce::dsp::ProcessContextReplacing<float> context(subBlock);
+    const auto depth = juce::jlimit(0.0f, 1.0f, params.chorusDepth.load());
+    if (depth > 0.0001f && chorusDelayBuffer.getNumSamples() > 2)
+    {
+        const auto delayBufferSize = chorusDelayBuffer.getNumSamples();
+        const auto chorusChannels = juce::jmin(buffer.getNumChannels(), chorusDelayBuffer.getNumChannels());
+        const auto phaseIncrement = static_cast<float>(juce::MathConstants<double>::twoPi * 0.25 / currentSampleRate);
 
-    chorus.setDepth(juce::jlimit(0.0f, 1.0f, params.chorusDepth.load()));
-    chorus.process(context);
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const auto mod = std::sin(chorusPhase);
+            const auto delayMs = 7.0f + depth * 5.0f * mod;
+            const auto delaySamples = juce::jlimit(1.0f, static_cast<float>(delayBufferSize - 2),
+                                                  delayMs * static_cast<float>(currentSampleRate) / 1000.0f);
+
+            auto readPosition = static_cast<float>(chorusWritePosition) - delaySamples;
+            while (readPosition < 0.0f)
+                readPosition += static_cast<float>(delayBufferSize);
+
+            const auto indexA = static_cast<int>(readPosition) % delayBufferSize;
+            const auto indexB = (indexA + 1) % delayBufferSize;
+            const auto frac = readPosition - std::floor(readPosition);
+
+            for (int channel = 0; channel < chorusChannels; ++channel)
+            {
+                auto* output = buffer.getWritePointer(channel, startSample);
+                auto* delay = chorusDelayBuffer.getWritePointer(channel);
+                const auto dry = output[i];
+
+                delay[chorusWritePosition] = dry;
+                const auto delayed = delay[indexA] + frac * (delay[indexB] - delay[indexA]);
+                output[i] = dry * 0.70f + delayed * 0.30f;
+            }
+
+            chorusWritePosition = (chorusWritePosition + 1) % delayBufferSize;
+            chorusPhase += phaseIncrement;
+            if (chorusPhase >= juce::MathConstants<float>::twoPi)
+                chorusPhase -= juce::MathConstants<float>::twoPi;
+        }
+    }
 
     juce::Reverb::Parameters reverbParams;
     reverbParams.roomSize = 0.22f;
