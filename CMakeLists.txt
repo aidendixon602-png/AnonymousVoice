@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(AnonymousVoice VERSION 0.3.1 LANGUAGES CXX)
+project(AnonymousVoice VERSION 0.4.0 LANGUAGES CXX)
 
 add_executable(AnonymousVoice WIN32
     Source/Main.cpp
+    Source/Audio/WasapiCapture.cpp
+    Source/Audio/WasapiCapture.h
 )
 
 set_target_properties(AnonymousVoice PROPERTIES
@@ -33,6 +35,8 @@ target_link_libraries(AnonymousVoice PRIVATE
     user32
     gdi32
     dwmapi
+    ole32
+    uuid
 )
 
 add_custom_command(TARGET AnonymousVoice POST_BUILD
