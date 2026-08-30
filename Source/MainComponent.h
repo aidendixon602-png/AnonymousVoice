@@ -1,20 +1,19 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "Audio/LightweightAudioAppComponent.h"
 #include "Audio/DspEngine.h"
 #include "Audio/VirtualMicOutput.h"
 
-class MainComponent final : public LightweightAudioAppComponent,
+class MainComponent final : public juce::Component,
                             private juce::Timer
 {
 public:
     MainComponent();
     ~MainComponent() override;
 
-    void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override;
-    void getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill) override;
-    void releaseResources() override;
+    void prepareToPlay(int samplesPerBlockExpected, double sampleRate);
+    void getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill);
+    void releaseResources();
 
     void paint(juce::Graphics& g) override;
     void resized() override;
