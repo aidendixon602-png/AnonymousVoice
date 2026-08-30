@@ -30,5 +30,7 @@ private:
     void audioDeviceAboutToStart(juce::AudioIODevice* device) override;
     void audioDeviceStopped() override;
 
+    juce::AudioBuffer<float> callbackBuffer;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LightweightAudioAppComponent)
 };
