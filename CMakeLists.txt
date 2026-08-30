@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(AnonymousVoice VERSION 0.3.0 LANGUAGES CXX)
+project(AnonymousVoice VERSION 0.3.1 LANGUAGES CXX)
 
 add_executable(AnonymousVoice WIN32
     Source/Main.cpp
