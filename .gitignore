@@ -25,11 +25,53 @@ cmake_install.cmake
 *.dll
 *.lib
 *.exp
+*.res
+*.rc
+
+# JUCE Projucer files
+*.jucer
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+
+# Linux
+*~
+.nfs*
 
 # Local backups
 backup-*/
 *.bak
+*.backup
+
+# Logs
+*.log
+
+# Temporary files
+temp/
+tmp/
 
 # OS/editor noise
 .DS_Store
 Thumbs.db
+
+# JUCE binary data
+BinaryData/
+
+# Virtual microphone driver files (if added later)
+*.sys
+*.inf
+*.cat
